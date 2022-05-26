@@ -5,7 +5,7 @@ double DetailRemap(const double alpha, double delta, double sigmaR)
 {
 	double fraction = delta / sigmaR; // 0.0 / 1.0
 	double polynomial = pow(fraction, alpha); // pow(0.0, 1.0)
-	if (alpha < 1.0) // always false because if (1.0 < 1.0)
+	if (alpha < 1.0) // always false because (1.0 < 1.0)
 	{
 		const double kNoiseLevel = 0.01;
 		double blend = SmoothStep(kNoiseLevel, 2.0 * kNoiseLevel, fraction * sigmaR);
@@ -51,6 +51,7 @@ __kernel void GetValueOfB(
 	uint xB = get_global_id(0);
 	uint yB = get_global_id(1);
 
+	// comment - (2022-05-26, Ethan) no need for this sample program
 	if (xB >= BWidth)
 		return;
 	if (yB >= BHeight)
@@ -68,7 +69,7 @@ __kernel void GetValueOfB(
 	const int nROIRight = min(xG0 + halfWidthFilter, G0Width - 1);
 	const int nROIWidth = nROIRight - nROILeft + 1;
 
-	__global const float* pnG0Local = (__global const float*)(memMatG0Data + nROITop * G0Width + nROILeft);
+	__global const float* pfG0Local = (__global const float*)(memMatG0Data + nROITop * G0Width + nROILeft);
 
 	memCoeffGRData += matCoeffGRWidth * yB;
 	memCoeffGUpRData += matCoeffGUpRWidth * yB;
@@ -83,7 +84,7 @@ __kernel void GetValueOfB(
 	{
 		for (int nX = 0; nX < nROIWidth; nX++)
 		{
-			double value = pnG0Local[nY * G0Width + nX]; // should be 0.0
+			double value = pfG0Local[nY * G0Width + nX]; // should be 0.0
 			double delta = fabs(value - reference); // should be 0.0
 			double sign = value < reference ? -1. : 1.; // should be 1.0
 			double output = 0.;
@@ -95,6 +96,8 @@ __kernel void GetValueOfB(
 				// next line should not be called
 				output = reference + sign * (EdgeRemap(beta, delta - sigmaR) + sigmaR);
 			dSum += (memCoeffGCData[nX] * memCoeffGRData[nY] - memCoeffGUpCData[nX] * memCoeffGUpRData[nY]) * output;
+			// should be dSum += (0.0 * 0.0 - 0.0 * 0.0) * 0.0
+			// should be dSum += 0.0
 		}
 	}
 
