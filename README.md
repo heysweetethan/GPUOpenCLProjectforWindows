@@ -1,10 +1,18 @@
 # GPUOpenCLProjectforWindows
 
+
+
 ## Compile and test environment
 - Visual Studio 2019 Professional 2019
 - Intel® SDK for OpenCL™ Applications 2020.3.494
 - Intel(R) Core(TM) i9-9900 CPU @ 3.10GHz
 - Intel® Distribution for GDB Target **must not be installed**
+
+## Project description
+- The project was created using "GPU OpenCL Project for Windows"
+![image](https://user-images.githubusercontent.com/83520888/170445979-f58de3af-ef41-4bcf-8e07-88ec285d5306.png)
+- My code starts from line 803 in GPUOpenCLProjectforWindows.cpp. All the code above was created by the template.
+- Template.cl includes my kernel.
 
 ## Expected printf output
 ```
