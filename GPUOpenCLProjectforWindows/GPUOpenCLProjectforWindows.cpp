@@ -593,7 +593,8 @@ int CreateAndBuildProgram(ocl_args_d_t* ocl)
 	// but there are also other possibilities when program consist of several parts,
 	// some of which are libraries, and you may want to consider using clCompileProgram and clLinkProgram as
 	// alternatives.
-	err = clBuildProgram(ocl->program, 1, &ocl->device, ""/*"-cl-opt-disable"*/, NULL, NULL);
+	err = clBuildProgram(ocl->program, 1, &ocl->device, "-cl-opt-disable", NULL, NULL);
+	//err = clBuildProgram(ocl->program, 1, &ocl->device, ""/*"-cl-opt-disable"*/, NULL, NULL);
 	if (CL_SUCCESS != err)
 	{
 		LogError("Error: clBuildProgram() for source program returned %s.\n", TranslateOpenCLError(err));
@@ -872,6 +873,9 @@ int myTest()
 
 	size_t matCoeffGR_size = zeroCopySizeAlignment(sizeof(float) * heightL0 * heightL8);
 	float* pMatCoeffGR = (float*)_aligned_malloc(matCoeffGR_size, ALIGNED_MALLOC_BYTES);
+	// comment - (2022-05-06, Ethan) In reality, pMatCoeffGR has some values other than zeros.
+	// But to reproduce the phenomenon it's okay even if they are zeros and it makes analysis easier.
+	// This is the same for pMatCoeffGUpR, pMatCoeffGC, pMatCoeffGUpC
 	memset(pMatCoeffGR, 0, matCoeffGR_size);
 
 	size_t matCoeffGUpR_size = zeroCopySizeAlignment(sizeof(float) * heightL0 * heightL8);
