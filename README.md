@@ -15,6 +15,10 @@
 - Template.cl includes my kernel.
 
 ## Expected printf output
+There're a couple of ways to get expected result.
+- Add "-cl-opt-disable" when compiling the kernel program
+- Install "Intel® Distribution for GDB Target"
+- Use NVIDIA instead of using HD Graphics
 ```
 Number of available platforms: 5
 Platform: Intel(R) OpenCL HD Graphics
