@@ -850,7 +850,7 @@ int myTest()
 	const int heightL0 = 3072;
 
 	// comment - (2022-05-26, Ethan) 24 * 24 is the 7th layer in Laplacian pyramid
-	//const int layerIndex = 2;
+	//const int layerIndex = 7;
 	//const int widthL8 = 24;
 	//const int heightL8 = 24;
 
