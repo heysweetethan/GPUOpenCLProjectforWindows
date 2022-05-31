@@ -1149,6 +1149,11 @@ int myTestCPU()
 				for (int nX = 0; nX < nROIWidth; nX++)
 				{
 					double value = pfG0Local[nY * widthL0 + nX]; // should be 0.0
+
+					// comment  - (2022-05-31, Ethan) should be met
+					//if (nROITop * widthL0 + nROILeft + nY * widthL0 + nX >= widthL0 * heightL0)
+					//	return -1;
+
 					double delta = fabs(value - reference); // should be 0.0
 					double sign = value < reference ? -1. : 1.; // should be 1.0
 					double output = 0.;
