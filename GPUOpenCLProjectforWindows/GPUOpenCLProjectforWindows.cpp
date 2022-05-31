@@ -1125,7 +1125,7 @@ int myTestCPU()
 		{
 			int yG0 = yB << layerIndex;
 			const int nROITop = max(yG0 - halfWidthFilter, 0);
-			const int nROIBottom = min(yG0 + halfWidthFilter, widthL0 - 1);
+			const int nROIBottom = min(yG0 + halfWidthFilter, heightL0 - 1);
 			const int nROIHeight = nROIBottom - nROITop + 1;
 
 			int xG0 = xB << layerIndex;
