@@ -801,6 +801,7 @@ bool ReadAndVerify(ocl_args_d_t* ocl, cl_uint width, cl_uint height, cl_int* inp
 }
 
 int myTest();
+int myTestCPU();
 
 /*
  * main execution routine
@@ -811,7 +812,12 @@ int myTest();
  */
 int _tmain(int argc, TCHAR* argv[])
 {
-	return myTest();
+	int ret;
+	ret = myTest();
+	if (ret != 0)
+		return ret;
+	ret = myTestCPU();
+	return ret;
 }
 
 size_t zeroCopySizeAlignment(size_t requiredSize)
@@ -895,7 +901,7 @@ int myTest()
 	float* pMatB = (float*)_aligned_malloc(matB_size, ALIGNED_MALLOC_BYTES);
 	// comment - (2022-05-26, Ethan) initialize as nan
 	memset(pMatB, 0xff, matB_size);
-	
+
 
 	cl_mem memMatG0 = clCreateBuffer(ocl.context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, matG0_size, pMatG0, &err);
 	if (CL_SUCCESS != err)
@@ -1052,4 +1058,150 @@ int myTest()
 	_aligned_free(pMatG0);
 
 	return 0;
+}
+
+double DetailRemap(const double alpha, double delta, double sigmaR);
+double EdgeRemap(const double beta, double delta);
+double SmoothStep(double xMin, double xMax, double x);
+
+int myTestCPU()
+{
+	const int widthL0 = 3072;
+	const int heightL0 = 3072;
+
+	// comment - (2022-05-26, Ethan) 24 * 24 is the 7th layer in Laplacian pyramid
+	//const int layerIndex = 7;
+	//const int widthL8 = 24;
+	//const int heightL8 = 24;
+
+	// comment - (2022-05-26, Ethan) 12 * 12 is the 8th layer in Laplacian pyramid
+	const int layerIndex = 8;
+	const int widthL8 = 12;
+	const int heightL8 = 12;
+
+	const float sigmaR = 1.0f;
+	const float alpha = 1.0f;
+	const float beta = 1.0f;
+
+
+	size_t matG0_size = zeroCopySizeAlignment(sizeof(float) * widthL0 * heightL0);
+	float* pMatG0 = (float*)_aligned_malloc(matG0_size, ALIGNED_MALLOC_BYTES);
+	memset(pMatG0, 0, matG0_size);
+
+	size_t matG8_size = zeroCopySizeAlignment(sizeof(float) * widthL8 * heightL8);
+	float* pMatG8 = (float*)_aligned_malloc(matG8_size, ALIGNED_MALLOC_BYTES);
+	memset(pMatG8, 0, matG8_size);
+
+	size_t matCoeffGR_size = zeroCopySizeAlignment(sizeof(float) * heightL0 * heightL8);
+	float* pMatCoeffGR = (float*)_aligned_malloc(matCoeffGR_size, ALIGNED_MALLOC_BYTES);
+	// comment - (2022-05-06, Ethan) In reality, pMatCoeffGR has some values other than zeros.
+	// But to reproduce the phenomenon it's okay even if they are zeros and it makes analysis easier.
+	// This is the same for pMatCoeffGUpR, pMatCoeffGC, pMatCoeffGUpC
+	memset(pMatCoeffGR, 0, matCoeffGR_size);
+
+	size_t matCoeffGUpR_size = zeroCopySizeAlignment(sizeof(float) * heightL0 * heightL8);
+	float* pMatCoeffGUpR = (float*)_aligned_malloc(matCoeffGUpR_size, ALIGNED_MALLOC_BYTES);
+	memset(pMatCoeffGUpR, 0, matCoeffGUpR_size);
+
+	size_t matCoeffGC_size = zeroCopySizeAlignment(sizeof(float) * widthL0 * widthL8);
+	float* pMatCoeffGC = (float*)_aligned_malloc(matCoeffGC_size, ALIGNED_MALLOC_BYTES);
+	memset(pMatCoeffGC, 0, matCoeffGC_size);
+
+	size_t matCoeffGUpC_size = zeroCopySizeAlignment(sizeof(float) * widthL0 * widthL8);
+	float* pMatCoeffGUpC = (float*)_aligned_malloc(matCoeffGUpC_size, ALIGNED_MALLOC_BYTES);
+	memset(pMatCoeffGUpC, 0, matCoeffGUpC_size);
+
+	size_t matB_size = zeroCopySizeAlignment(sizeof(float) * widthL8 * heightL8);
+	// comment - (2022-05-26, Ethan) should all zero after OpenCL kernel
+	float* pMatB = (float*)_aligned_malloc(matB_size, ALIGNED_MALLOC_BYTES);
+	// comment - (2022-05-26, Ethan) initialize as nan
+	memset(pMatB, 0xff, matB_size);
+
+	const int halfWidthFilter = 3 * (2 << layerIndex) - 2;
+
+	for (int yB = 0; yB < heightL8; yB++)
+	{
+		for (int xB = 0; xB < widthL8; xB++)
+		{
+			int yG0 = yB << layerIndex;
+			const int nROITop = max(yG0 - halfWidthFilter, 0);
+			const int nROIBottom = min(yG0 + halfWidthFilter, widthL0 - 1);
+			const int nROIHeight = nROIBottom - nROITop + 1;
+
+			int xG0 = xB << layerIndex;
+			const int nROILeft = max(xG0 - halfWidthFilter, 0);
+			const int nROIRight = min(xG0 + halfWidthFilter, widthL0 - 1);
+			const int nROIWidth = nROIRight - nROILeft + 1;
+
+			const float* pfG0Local = (const float*)(pMatG0 + nROITop * widthL0 + nROILeft);
+
+			float* pCurMatCoeffGR = pMatCoeffGR + heightL8 * yB;
+			float* pCurMatCoeffGUpR = pMatCoeffGUpR + heightL8 * yB;
+
+			float* pCurMatCoeffGC = pMatCoeffGC + widthL8 * xB;
+			float* pCurMatCoeffGUpC = pMatCoeffGUpC + widthL8 * xB;
+
+			const double reference = pMatG8[yB * widthL8 + xB]; // should be 0.0
+
+			double dSum = 0.0;
+			for (int nY = 0; nY < nROIHeight; nY++)
+			{
+				for (int nX = 0; nX < nROIWidth; nX++)
+				{
+					double value = pfG0Local[nY * widthL0 + nX]; // should be 0.0
+					double delta = fabs(value - reference); // should be 0.0
+					double sign = value < reference ? -1. : 1.; // should be 1.0
+					double output = 0.;
+					if (delta < sigmaR) // should be true because (0.0 < 1.0) 
+						// should be 0.0 = 0.0 + 1.0 * 1.0 * DetailRemap(1.0, 0.0, 1.0);
+						// should be 0.0 = 0.0 + 1.0 * 1.0 * 0.0
+						output = reference + sign * sigmaR * DetailRemap(alpha, delta, sigmaR);
+					else
+						// next line should not be called
+						output = reference + sign * (EdgeRemap(beta, delta - sigmaR) + sigmaR);
+					dSum += (pMatCoeffGC[nX] * pMatCoeffGR[nY] - pMatCoeffGUpC[nX] * pMatCoeffGUpR[nY]) * output;
+					// should be dSum += (0.0 * 0.0 - 0.0 * 0.0) * 0.0
+					// should be dSum += 0.0
+				}
+			}
+
+			printf("(%d, %d, %f)\n", xB, yB, dSum);
+			pMatB[yB * widthL8 + xB] = (float)dSum;
+		}
+	}
+
+	_aligned_free(pMatB);
+	_aligned_free(pMatCoeffGUpC);
+	_aligned_free(pMatCoeffGC);
+	_aligned_free(pMatCoeffGUpR);
+	_aligned_free(pMatCoeffGR);
+	_aligned_free(pMatG8);
+	_aligned_free(pMatG0);
+
+	return 0;
+}
+
+double DetailRemap(const double alpha, double delta, double sigmaR)
+{
+	double fraction = delta / sigmaR; // 0.0 / 1.0
+	double polynomial = pow(fraction, alpha); // pow(0.0, 1.0)
+	if (alpha < 1.0) // always false because (1.0 < 1.0)
+	{
+		const double kNoiseLevel = 0.01;
+		double blend = SmoothStep(kNoiseLevel, 2.0 * kNoiseLevel, fraction * sigmaR);
+		polynomial = blend * polynomial + (1.0 - blend) * fraction;
+	}
+	return polynomial; // 0.0
+}
+
+double EdgeRemap(const double beta, double delta)
+{
+	return beta * delta;
+}
+
+double SmoothStep(double xMin, double xMax, double x)
+{
+	double y = (x - xMin) / (xMax - xMin);
+	y = fmax(0.0, fmin(1.0, y));
+	return pow(y, 2.0) * pow(y - 2.0, 2.0);
 }
