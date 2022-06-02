@@ -1,29 +1,30 @@
+#define TYPE_FLOAT float
 
-double SmoothStep(double xMin, double xMax, double x);
+TYPE_FLOAT SmoothStep(TYPE_FLOAT xMin, TYPE_FLOAT xMax, TYPE_FLOAT x);
 
-double DetailRemap(const double alpha, double delta, double sigmaR)
+TYPE_FLOAT DetailRemap(const TYPE_FLOAT alpha, TYPE_FLOAT delta, TYPE_FLOAT sigmaR)
 {
-	double fraction = delta / sigmaR; // 0.0 / 1.0
-	double polynomial = pow(fraction, alpha); // pow(0.0, 1.0)
-	if (alpha < 1.0) // always false because (1.0 < 1.0)
+	TYPE_FLOAT fraction = delta / sigmaR; // 0.0 / 1.0
+	TYPE_FLOAT polynomial = pow(fraction, alpha); // pow(0.0, 1.0)
+	if (alpha < (TYPE_FLOAT)1.0) // always false because (1.0 < 1.0)
 	{
-		const double kNoiseLevel = 0.01;
-		double blend = SmoothStep(kNoiseLevel, 2.0 * kNoiseLevel, fraction * sigmaR);
-		polynomial = blend * polynomial + (1.0 - blend) * fraction;
+		const TYPE_FLOAT kNoiseLevel = (TYPE_FLOAT)0.01;
+		TYPE_FLOAT blend = SmoothStep(kNoiseLevel, (TYPE_FLOAT)2.0 * kNoiseLevel, fraction * sigmaR);
+		polynomial = blend * polynomial + ((TYPE_FLOAT)1.0 - blend) * fraction;
 	}
 	return polynomial; // 0.0
 }
 
-double EdgeRemap(const double beta, double delta)
+TYPE_FLOAT EdgeRemap(const TYPE_FLOAT beta, TYPE_FLOAT delta)
 {
 	return beta * delta;
 }
 
-double SmoothStep(double xMin, double xMax, double x)
+TYPE_FLOAT SmoothStep(TYPE_FLOAT xMin, TYPE_FLOAT xMax, TYPE_FLOAT x)
 {
-	double y = (x - xMin) / (xMax - xMin);
-	y = fmax(0.0, fmin(1.0, y));
-	return pow(y, 2.0) * pow(y - 2.0, 2.0);
+	TYPE_FLOAT y = (x - xMin) / (xMax - xMin);
+	y = fmax((TYPE_FLOAT)0.0, fmin((TYPE_FLOAT)1.0, y));
+	return pow(y, (TYPE_FLOAT)2.0) * pow(y - (TYPE_FLOAT)2.0, (TYPE_FLOAT)2.0);
 }
 
 __kernel void GetValueOfB(
@@ -77,17 +78,17 @@ __kernel void GetValueOfB(
 	memCoeffGCData += matCoeffGCWidth * xB;
 	memCoeffGUpCData += matCoeffGUpCWidth * xB;
 
-	const double reference = memMatG[yB * BWidth + xB]; // should be 0.0
+	const TYPE_FLOAT reference = (TYPE_FLOAT)memMatG[yB * BWidth + xB]; // should be 0.0
 
-	double dSum = 0.0;
+	TYPE_FLOAT dSum = (TYPE_FLOAT)0.0;
 	for (int nY = 0; nY < nROIHeight; nY++)
 	{
 		for (int nX = 0; nX < nROIWidth; nX++)
 		{
-			double value = pfG0Local[nY * G0Width + nX]; // should be 0.0
-			double delta = fabs(value - reference); // should be 0.0
-			double sign = value < reference ? -1. : 1.; // should be 1.0
-			double output = 0.;
+			TYPE_FLOAT value = pfG0Local[nY * G0Width + nX]; // should be 0.0
+			TYPE_FLOAT delta = fabs(value - reference); // should be 0.0
+			TYPE_FLOAT sign = value < reference ? (TYPE_FLOAT)-1.0 : (TYPE_FLOAT)1.0; // should be 1.0
+			TYPE_FLOAT output = (TYPE_FLOAT)0.0;
 			if (delta < sigmaR) // should be true because (0.0 < 1.0) 
 				// should be 0.0 = 0.0 + 1.0 * 1.0 * DetailRemap(1.0, 0.0, 1.0);
 				// should be 0.0 = 0.0 + 1.0 * 1.0 * 0.0

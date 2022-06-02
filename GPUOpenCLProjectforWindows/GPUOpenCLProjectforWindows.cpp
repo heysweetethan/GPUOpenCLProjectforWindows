@@ -813,9 +813,11 @@ int myTestCPU();
 int _tmain(int argc, TCHAR* argv[])
 {
 	int ret;
+	printf("================ GPU ======================\n");
 	ret = myTest();
 	if (ret != 0)
 		return ret;
+	printf("================ CPU ======================\n");
 	ret = myTestCPU();
 	return ret;
 }
